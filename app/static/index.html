@@ -4,78 +4,227 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Management</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&family=Karla:ital,wght@0,200..800;1,200..800&family=Nanum+Myeongjo&family=Noto+Serif+KR:wght@200..900&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Karla', Arial, sans-serif;
             margin: 20px;
+            background-color: black;
             text-align: center;
+            background: url(https://images.pexels.com/photos/28544351/pexels-photo-28544351.png);
+            background-size: cover;         
+            background-position: center;  
+            background-repeat: no-repeat;  
+            background-attachment: fixed;  
+            
         }
         .container {
-            max-width: 600px;
-            margin: 0 auto;
-            border: 1px solid #ccc;
-            border-radius: 8px;
+            max-width: 1000px;
+            height: 700px;
+            margin: 100px auto;
+            border-radius: 15px;
             padding: 20px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 40px; 
         }
+
+        #login-screen,
+        #logged-in-screen {
+            display: flex;
+            padding: 0;
+            gap: 0;
+            align-items: stretch;
+            overflow: hidden;
+        }
+
+        .user-icon {
+            width: 250px;
+            height: 250px;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(147, 170, 211, 0.12);
+            color: #93aad3;
+        }
+
+        .user-icon svg {
+            width: 150px;
+            height: 150px;
+        }
+        
         h1 {
-            color: #333;
+            font-family: 'Karla', sans-serif;
+            color: #93aad3;
+            font-size: 2rem;
+            margin: 10px 0 24px;
+            font-weight: 900;
+            text-align: center;
         }
+
+        /* container의 좌측 (user management, welcome user)*/
+        .container-left {
+            flex: 1;
+            text-align: left; 
+            background: rgba(255, 255, 255, 0.8);
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* container의 우측 (form, input)*/
+        .container-right {
+            flex: 1.2;
+            display: flex;
+            flex-direction: column; 
+            text-align: left; 
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.50);
+            backdrop-filter: blur(18px) saturate(160%);
+            -webkit-backdrop-filter: blur(18px) saturate(160%);
+            border-left: 1px solid rgba(255, 255, 255, 0.3); 
+            padding: 40px;
+        }
+ 
+        h2 {
+            font-family: 'Karla', sans-serif;
+            font-size: 1.7rem;
+            font-weight: 800;
+            color: rgba(255, 255, 255, 2);
+            margin: 0 0 16px;
+            text-align: center;
+        }
+
         form {
             margin: 20px 0;
+            text-align: left;
         }
+        
+        /* login, register input*/
         input {
-            padding: 10px;
-            margin: 5px 0;
-            width: 80%;
-            font-size: 16px;
+            padding: 12px 14px;
+            margin: 6px 0;
+            width: 100%; 
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            color: #2c3e5c;
+            background: rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 50px;
+            outline: none;
+            transition: border-color 0.2s ease, background 0.2s ease;
+            box-sizing: border-box;
         }
+        
+        input::placeholder {
+            color: rgba(60, 84, 126, 0.5);
+        }
+        
+        /* input 클릭했을 때*/
+        input:focus {
+            border-color: #93aad3;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* login, register button*/
         button {
-            padding: 10px 20px;
-            margin: 10px;
-            font-size: 16px;
+            padding: 12px 20px;
+            margin: 10px 0 0;
+            width: 100%; 
+            font-size: 15px;
+            font-family: 'Karla', sans-serif;
+            font-weight: 600;
+            color: rgb(147, 170, 211);
             cursor: pointer;
+            border: none;
+            border-radius: 50px;
+            background: #fff;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            box-sizing: border-box;
         }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 4px #c9cdd5;
+        }
+ 
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        #register-section {
+            padding-top: 24px;
+            border-top: 1px solid rgba(255, 255, 255, 1);
+        }
+
+        #delete-section {
+            padding-top: 24px;
+            border-top: 1px solid rgba(255, 255, 255, 1);
+        }
+
         .section {
             margin-bottom: 30px;
         }
     </style>
+
 </head>
 <body>
     <div class="container" id="login-screen">
-        <h1>User Management</h1>
-        <div class="section" id="login-section">
-            <h2>Login</h2>
-            <form id="login-form">
-                <input type="email" id="login-email" placeholder="Email" required><br>
-                <input type="password" id="login-password" placeholder="Password" required><br>
-                <button type="button" onclick="loginUser()">Login</button>
-            </form>
+        <div class="container-left">
+            <div class="user-icon">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.6"/>
+                    <path d="M5 19c0-3.5 3.1-5.8 7-5.8s7 2.3 7 5.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <h1>USER MANAGEMENT</h1>
         </div>
-        <div class="section" id="register-section">
-            <h2>Register</h2>
-            <form id="register-form">
-                <input type="email" id="register-email" placeholder="Email" required><br>
-                <input type="password" id="register-password" placeholder="Password" required><br>
-                <input type="text" id="register-username" placeholder="Username" required><br>
-                <button type="button" onclick="registerUser()">Register</button>
-            </form>
+        <div class="container-right"> 
+            <div class="section" id="login-section">
+                <h2>LOGIN</h2>
+                <form id="login-form">
+                    <input type="email" id="login-email" placeholder="Email" required><br>
+                    <input type="password" id="login-password" placeholder="Password" required><br>
+                    <button type="button" onclick="loginUser()">Login</button>
+                </form>
+            </div>
+            <div class="section" id="register-section">
+                <h2>REGISTER</h2>
+                <form id="register-form">
+                    <input type="email" id="register-email" placeholder="Email" required><br>
+                    <input type="password" id="register-password" placeholder="Password" required><br>
+                    <input type="text" id="register-username" placeholder="Username" required><br>
+                    <button type="button" onclick="registerUser()">Register</button>
+                </form>
+            </div>
         </div>
     </div>
 
     <div class="container" id="logged-in-screen" style="display: none;">
-        <h1>Welcome, <span id="username"></span></h1>
-        <div class="section" id="update-password-section">
-            <h2>Update Password</h2>
-            <form id="update-password-form">
-                <input type="password" id="update-password" placeholder="New Password" required><br>
-                <button type="button" onclick="updatePassword()">Update Password</button>
-            </form>
+        <div class="container-left">
+            <h1>Welcome, <span id="username"></span></h1>
         </div>
+        <div class="container-right">
+            <div class="section" id="update-password-section">
+                <h2>Update Password</h2>
+                <form id="update-password-form">
+                    <input type="password" id="update-password" placeholder="New Password" required><br>
+                    <button type="button" onclick="updatePassword()">Update Password</button>
+                </form>
+            </div>
 
-        <div class="section" id="delete-section">
-            <h2>Delete Account</h2>
-            <button type="button" onclick="deleteUser()">Delete Account</button>
+            <div class="section" id="delete-section">
+                <h2>Delete Account</h2>
+                <button type="button" onclick="deleteUser()">Delete Account</button>
+            </div>
         </div>
     </div>
 
@@ -103,7 +252,7 @@
                 userEmail = email; // 로그인 성공 시 이메일 저장
                 document.getElementById('username').textContent = `Hello, ${data.username}!`; // 사용자 이름 표시
                 document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('logged-in-screen').style.display = 'block';
+                document.getElementById('logged-in-screen').style.display = 'flex';
             })
             .catch(error => alert(`Login failed: ${error.message}`));
         }
@@ -172,7 +321,7 @@
             .then(() => {
                 alert(`User deleted successfully!`);
                 document.getElementById('logged-in-screen').style.display = 'none';
-                document.getElementById('login-screen').style.display = 'block';
+                document.getElementById('login-screen').style.display = 'flex';
                 userEmail = null; // 이메일 초기화
             })
             .catch(error => alert(`Account deletion failed: ${error.message}`));
