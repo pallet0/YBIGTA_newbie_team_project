@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Crawler runtime files
+*.log
+.selenium-cache/

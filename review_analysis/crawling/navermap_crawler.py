@@ -28,13 +28,11 @@ import csv
 import time
 import random
 import logging
-from typing import List, Dict, Optional
-import undetected_chromedriver as uc # type: ignore
- 
+from typing import Dict, List, Optional
+import undetected_chromedriver as uc  # type: ignore
+
 
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys 
 from selenium.webdriver.support.ui import WebDriverWait
@@ -71,7 +69,7 @@ class NaverMapCrawler(BaseCrawler):
             driver: Selenium Chrome 드라이버 인스턴스. start_browser() 호출 전에는 None.
             reviews (List[Dict]): 
                 파싱된 리뷰들을 담는 리스트. 각 원소는
-                {"rating", "date", "review", "visit_time", "reservation", "wait_time"} 
+                {"rating", "date", "content", "visit_time", "reservation", "wait_time"}
                 키를 가진 dict.
 
         CSS Selector 상수:
@@ -106,9 +104,9 @@ class NaverMapCrawler(BaseCrawler):
         super().__init__(output_dir)
         self.base_url = "https://m.place.naver.com/restaurant/11871325/review/visitor?entry=ple&reviewSort=recent"
         self.driver: Optional[webdriver.Chrome] = None
-        self.reviews: List[Dict] = []
+        self.reviews: List[Dict[str, str]] = []
 
-    def start_browser(self):
+    def start_browser(self) -> None:
         """undetected-chromedriver를 사용하여 봇 탐지를 우회합니다."""
         options = uc.ChromeOptions()
         
@@ -124,16 +122,16 @@ class NaverMapCrawler(BaseCrawler):
         logger.info("undetected-chromedriver로 브라우저를 시작합니다...")
         
         # uc.Chrome을 사용하면 기존에 사용했던 복잡한 우회 옵션(CDP 등)을 알아서 처리해 줍니다.
-        self.driver = 
-        uc.Chrome(options=options,
+        self.driver = uc.Chrome(
+            options=options,
             # version_main=150 크롬 버전에 따라 주석 해제 후 변경 가능
-        ) 
+        )
         
         self.driver.get(self.base_url)
         self._sleep(3.0, 5.0)
         
     
-    def scrape_reviews(self, min_count: int = 570):
+    def scrape_reviews(self, min_count: int = 570) -> None:
         """
         리뷰 탭에 진입한 뒤, 더보기를 반복 클릭하며 리뷰를 수집합니다.
  
@@ -282,7 +280,7 @@ class NaverMapCrawler(BaseCrawler):
                     {
                         "rating": rating,
                         "date": date,
-                        "review": text,
+                        "content": text,
                         "visit_time": visit_time,
                         "reservation": reservation,
                         "wait_time": wait_time,
@@ -291,7 +289,7 @@ class NaverMapCrawler(BaseCrawler):
  
         logger.info(f"총 {len(self.reviews)}개의 리뷰 파싱 완료")
 
-    def save_to_database(self):
+    def save_to_database(self) -> None:
         """
         수집된 리뷰를 output_dir/reviews_navermap.csv 로 저장합니다.
         
@@ -303,7 +301,17 @@ class NaverMapCrawler(BaseCrawler):
         save_path = os.path.join(self.output_dir, "reviews_navermap.csv")
  
         with open(save_path, "w", newline="", encoding="utf-8-sig") as f:
-            writer = csv.DictWriter(f, fieldnames=["rating", "date", "review","visit_time","reservation","wait_time"])
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "rating",
+                    "date",
+                    "content",
+                    "visit_time",
+                    "reservation",
+                    "wait_time",
+                ],
+            )
             writer.writeheader()
             writer.writerows(self.reviews)
  
@@ -313,7 +321,7 @@ class NaverMapCrawler(BaseCrawler):
             self.driver.quit()
 
     @staticmethod
-    def _sleep(min_sec: float, max_sec: float):
+    def _sleep(min_sec: float, max_sec: float) -> None:
         """min_sec ~ max_sec 사이의 랜덤한 시간만큼 대기"""
         time.sleep(random.uniform(min_sec, max_sec))
  

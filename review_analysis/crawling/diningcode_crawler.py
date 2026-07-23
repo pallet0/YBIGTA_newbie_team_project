@@ -69,7 +69,7 @@ class DiningCodeCrawler(BaseCrawler):
                 )
                 
                 more_button.click()
-                time.sleep(0.7)
+                time.sleep(1)
             
             # 리뷰 전개 종료, 리뷰 모으기
             scraped_reviews = driver.find_elements(
