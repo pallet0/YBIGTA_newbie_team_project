@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# 크롤링 과제 추가
+.venv/
+.DS_Store
+app.log
