@@ -105,7 +105,9 @@ class KakaoMapCrawler(BaseCrawler):
             key = (date, content)
             if content and key not in self.seen:
                 self.seen.add(key)
-                self.reviews.append({"별점": rating, "날짜": date, "리뷰": content})
+                self.reviews.append(
+                    {"rating": rating, "date": date, "content": content}
+                )
 
     def _extract_rating(self, item: Tag) -> str:
         """별점 추출. starred_grade 안 screen_out 중 숫자인 값을 반환한다."""
@@ -136,10 +138,10 @@ class KakaoMapCrawler(BaseCrawler):
         return el.get_text(strip=True) if el else ""
 
     def save_to_database(self) -> None:
-        """수집한 리뷰를 output_dir/reviews_seongsimdang.csv 로 저장한다."""
+        """수집한 리뷰를 output_dir/reviews_kakaomap.csv 로 저장한다."""
         os.makedirs(self.output_dir, exist_ok=True)
         df = pd.DataFrame(self.reviews)
-        path = os.path.join(self.output_dir, "reviews_seongsimdang.csv")
+        path = os.path.join(self.output_dir, "reviews_kakaomap.csv")
         df.to_csv(path, index=False, encoding="utf-8-sig")
         self.logger.info(f"{len(df)}개 리뷰 저장 완료 → {path}")
         if self.driver is not None:
