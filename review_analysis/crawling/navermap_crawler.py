@@ -124,7 +124,10 @@ class NaverMapCrawler(BaseCrawler):
         logger.info("undetected-chromedriver로 브라우저를 시작합니다...")
         
         # uc.Chrome을 사용하면 기존에 사용했던 복잡한 우회 옵션(CDP 등)을 알아서 처리해 줍니다.
-        self.driver = uc.Chrome(options=options,version_main=150) #version_main=150 주석처리
+        self.driver = 
+        uc.Chrome(options=options,
+            # version_main=150 크롬 버전에 따라 주석 해제 후 변경 가능
+        ) 
         
         self.driver.get(self.base_url)
         self._sleep(3.0, 5.0)
