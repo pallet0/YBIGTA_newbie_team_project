@@ -1,3 +1,34 @@
+# 팀 소개
+
+저희 팀은 아래 세 명의 인원으로 구성되어 있습니다.
+
+- 노예준: 컴퓨터과학과 / 희망 진로: 인공지능 연구원
+- 공률하: 창의기술경영, 3학년(24학번) / 희망 진로: 금융권, IT 계열
+- 이지원: 대기과학·인공지능융합심화전공 / 희망 진로: 창업, 컨설팅
+
+## GitHub 협업 과정
+
+### 브랜치 보호 설정
+
+![브랜치 보호 설정](github/branch_protection.png)
+
+### main 브랜치 직접 push 거부
+
+![push 거부 화면](github/push_rejected.png)
+
+### Pull Request 리뷰 및 병합
+
+![PR 리뷰 및 병합](github/review_and_merged.png)
+
+## Web 과제 실행 방법
+
+```bash
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+---
+
 # 성심당 본점 리뷰 분석 (EDA & FE, 시각화)
 
 대전 성심당 본점에 대한 카카오맵(`reviews_kakaomap.csv`), 다이닝코드(`reviews_diningcode.csv`),
