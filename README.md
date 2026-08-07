@@ -671,3 +671,70 @@ YBIGTA_newbie_team_project
 - 웨이팅 언급 리뷰의 별점은 세 사이트 모두 더 낮았습니다.
 - 차이는 카카오맵에서 0.22점으로 가장 컸고, 다이닝코드는 0.02점으로 거의 없었습니다.
 - 단순 평균 비교이므로 웨이팅이 별점 하락의 원인이라고 단정할 수는 없습니다.
+
+
+## DB, Docker, AWS 과제 
+
+### MongoDB 데이터 전처리 자동화
+
+#### 구현 개요
+
+리뷰 크롤링 데이터(diningcode, navermap, kakaomap)를 MongoDB에 저장하고, `POST /review/preprocess/{site_name}` API를 통해 전처리 및 Feature Engineering을 자동화했습니다. 기존 CSV 기반으로 구현되어 있던 전처리 클래스들을 MongoDB 입출력 구조로 리팩터링하는 방식으로 진행했습니다.
+
+
+
+#### 데이터 흐름
+
+1. **원본 데이터 저장**: 크롤링된 CSV(rating, date, content 등)를 `site_name` 필드와 함께 `raw_reviews` 컬렉션에 저장. 하나의 컬렉션에 세 사이트 데이터를 모두 담고 `site_name` 필드로 구분하는 방식을 채택했습니다. (사이트별로 컬렉션을 분리하는 대신, 조회 시 `{"site_name": "..."}` 필터 하나로 처리할 수 있어 API 설계가 단순해집니다.)
+
+2. **API 요청**: `POST /review/preprocess/{site_name}` 호출 시, 경로 파라미터로 받은 `site_name`에 따라 해당 사이트 전용 프로세서 클래스를 선택합니다 (`PROCESSOR_MAP`으로 매핑).
+
+3. **전처리 및 Feature Engineering**: 각 프로세서는 결측치/이상치 제거텍스트 정제, 날짜 파싱, TF-IDF 벡터화 등 사이트별로 이미 구현되어 있던 로직을 그대로 수행합니다. 기존에는 이 로직들이 로컬 CSV 파일을 입출력으로 사용했으나, MongoDB의 조회 결과(`dict` 리스트)를 입력받고 MongoDB 컬렉션에 결과를 저장하는 구조로 리팩터링했습니다.
+
+4. **결과 저장**: 처리된 결과는 `processed_reviews` 컬렉션에 저장되며, 재요청 시 중복 저장을 방지하기 위해 저장 직전 동일 `site_name`의 기존 데이터를 삭제한 뒤 새로 삽입합니다.
+
+#### 주요 파일
+
+| 파일 | 역할 |
+|---|---|
+| `database/mongodb_connection.py` | MongoDB 클라이언트 연결 |
+| `app/review/review_router.py` | `POST /review/preprocess/{site_name}` API 엔드포인트 |
+| `review_analysis/preprocessing/diningcode_processor.py` | DiningCode 리뷰 전처리 |
+| `review_analysis/preprocessing/navermap_processor.py` | NaverMap 리뷰 전처리 |
+| `review_analysis/preprocessing/kakaomap_processor.py` | KakaoMap 리뷰 전처리 |
+
+
+#### API 응답 예시
+
+**성공 (200)**
+```json
+{
+  "status": "success",
+  "site_name": "diningcode",
+  "processed_count": 308
+}
+```
+
+**지원하지 않는 site_name (400)**
+```json
+{
+  "detail": "지원하지 않는 site_name입니다: hello"
+}
+```
+
+#### 문제와 해결 과정
+
+##### 데이터 재처리 시 중복 삽입 문제
+
+API를 여러 번 호출해 테스트하는 과정에서, `processed_reviews` 컬렉션에 같은 사이트 데이터가 중복으로 쌓이는 것을 발견했습니다. `insert_many()`는 기존 데이터를 지우지 않고 단순히 추가만 하기 때문입니다.
+
+해결: 저장 직전에 `collection.delete_many({"site_name": site_name})`로 기존 데이터를 먼저 삭제한 뒤 `insert_many()`를 수행하도록 수정했습니다. 이를 통해 API를 몇 번을 호출해도 결과가 항상 동일하게 유지되는 **멱등성**을 확보했습니다.
+
+> **개념 정리 — 멱등성:**
+> 동일한 요청을 여러 번 수행해도 결과가 달라지지 않는 성질을 말합니다.
+> REST API 설계에서 `POST`는 원래 멱등하지 않은 것이 일반적이지만
+> (호출할 때마다 새 리소스가 생성됨), 이번 전처리 API처럼 "최신 상태로
+> 갱신"하는 것이 목적인 경우에는 재호출 시에도 동일한 결과가 나오도록
+> 설계하는 것이 안전합니다. 특히 여러 사람이 같은 API를 테스트하거나,
+> CI/CD 파이프라인에서 반복 실행될 가능성이 있는 엔드포인트라면
+> 멱등성을 고려하는 것이 중요합니다.
