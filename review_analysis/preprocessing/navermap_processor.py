@@ -1,4 +1,3 @@
-import os
 import re
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore
@@ -8,9 +7,25 @@ from review_analysis.preprocessing.base_processor import BaseDataProcessor
 class NavermapProcessor(BaseDataProcessor):
     def __init__(self, input_path: str, output_path: str):
         super().__init__(input_path, output_path)
+        self.df: pd.DataFrame = pd.DataFrame()  # [수정] 명시적 초기화 추가
+        self.raw_documents: list[dict] = []  # [수정] Mongo 원본 문서를 담을 변수 추가
+
+    def load_from_mongo(self, documents: list[dict]) -> None:  # [수정] 신규 메서드 추가
+        """MongoDB find() 결과(dict 리스트)를 주입받습니다.
+
+        Args:
+            documents: raw_reviews 컬렉션에서 site_name="navermap"으로 조회한 문서 리스트
+        """
+        self.raw_documents = documents
 
     def preprocess(self):
-        df = pd.read_csv(self.input_path)
+
+        # [수정] 주입받은 documents로 DataFrame 생성
+        df = pd.DataFrame(self.raw_documents)
+
+        # [수정] Mongo _id는 재삽입 시 충돌 방지를 위해 제거
+        if "_id" in df.columns:
+            df = df.drop(columns=["_id"])
  
         # 1. 결측치 처리: 별점/리뷰/날짜 중 결측치가 있을 경우 행 제거
         df = df.dropna(subset=["rating", "date", "content"])
@@ -80,8 +95,15 @@ class NavermapProcessor(BaseDataProcessor):
         self.df = pd.concat([df.reset_index(drop=True), tfidf_df], axis=1)
         return self.df
 
-    def save_to_database(self):
-        os.makedirs(self.output_dir, exist_ok=True)
-        output_path = os.path.join(self.output_dir, "preprocessed_reviews_navermap.csv")
-        self.df.to_csv(output_path, index=False, encoding="utf-8-sig")
-        print(f"Saved: {output_path} ({len(self.df)} rows)")
+    def save_to_database(self, collection) -> None:   # [수정] output_dir 대신 mongo collection
+        """전처리 및 FE 결과를 MongoDB 컬렉션에 저장합니다.
+
+        Args:
+            collection: 저장 대상 MongoDB 컬렉션 (pymongo Collection 객체)
+        """
+        # [수정] MongoDB insert_many
+        records = self.df.to_dict("records")
+        if records:
+            collection.delete_many({"site_name": "navermap"})  # 재실행시 기존 데이터 먼저 삭제
+            collection.insert_many(records)
+        print(f"Saved to MongoDB: {len(records)} rows")   # [수정]

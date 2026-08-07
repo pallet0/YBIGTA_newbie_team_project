@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pandas as pd
 from review_analysis.preprocessing.base_processor import BaseDataProcessor
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -17,13 +15,29 @@ class DiningCodeProcessor(BaseDataProcessor):
         """
         super().__init__(input_path, output_dir)
         self.df: pd.DataFrame = pd.DataFrame()
+        self.raw_documents: list[dict] = []  # [수정] Mongo 원본 문서를 담을 변수 추가
+
+    def load_from_mongo(self, documents: list[dict]) -> None:  # [수정] 신규 메서드 추가
+        """MongoDB find() 결과(dict 리스트)를 주입받습니다.
+
+        Args:
+            documents: raw_reviews 컬렉션에서 site_name="diningcode"로 조회한 문서 리스트
+        """
+        self.raw_documents = documents
 
     def preprocess(self) -> None:
         """결측치와 이상치를 처리하고 리뷰 텍스트와 날짜를 정제합니다"""
 
         min_length, max_length = 30, 400
 
-        df = pd.read_csv(self.input_path, encoding="utf-8-sig")
+        # [수정] pd.read_csv(self.input_path) → 주입받은 documents로 DataFrame 생성
+        df = pd.DataFrame(self.raw_documents)
+
+        if "_id" in df.columns:  # [수정] Mongo _id는 재삽입 시 충돌 방지를 위해 제거
+            df = df.drop(columns=["_id"])
+
+        df.columns = df.columns.str.replace("\ufeff", "", regex=False)  # [수정] BOM 제거
+
 
         df["rating"] = pd.to_numeric(df["rating"], errors="coerce") # 평점을 숫자 자료형으로 변환
         df = df.dropna(subset=["rating"])
@@ -80,24 +94,19 @@ class DiningCodeProcessor(BaseDataProcessor):
         )
         self.df = pd.concat([self.df, tfidf_df], axis=1)
 
-    def save_to_database(self) -> None:
-        """preprocessing 및 FE 결과를 지정된 CSV 파일로 저장합니다."""
 
-        output_dir = Path(self.output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / "preprocessed_reviews_diningcode.csv"
-        self.df.to_csv(output_path, index=False, encoding="utf-8-sig")
+    def save_to_database(self, collection) -> None:  # [수정] output_dir → mongo collection 인자로 변경
+        """전처리 및 FE 결과를 MongoDB 컬렉션에 저장합니다.
 
+        Args:
+            collection: 저장 대상 MongoDB 컬렉션 (pymongo Collection 객체)
+        """
+        # [수정] Path/mkdir/to_csv 제거 → insert_many로 변경
+        records = self.df.to_dict("records")
+        if records:
+            collection.delete_many({"site_name": "diningcode"})  # 재실행시 기존 데이터 먼저 삭제
+            collection.insert_many(records)
+        print(f"Saved to MongoDB: {len(records)} rows")  # [수정] 저장 결과 로그 추가
 
-if __name__ == '__main__':
-    dcp = DiningCodeProcessor(
-        str(
-            Path(__file__).resolve().parents[2]
-            / "database"
-            / "reviews_diningcode.csv"
-        ),
-        str(Path(__file__).resolve().parents[2] / "database"),
-    )
-    dcp.preprocess()
-    dcp.feature_engineering()
-    dcp.save_to_database()
+# [수정] from pathlib import Path 삭제
+# [수정] __main__ 블록 전체 삭제 

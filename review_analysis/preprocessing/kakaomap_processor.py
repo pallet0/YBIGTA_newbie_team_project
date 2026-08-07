@@ -81,19 +81,37 @@ class KakaomapProcessor(BaseDataProcessor):
 
     def __init__(self, input_path: str, output_dir: str):
         super().__init__(input_path, output_dir)
-        self.df = pd.read_csv(input_path, encoding="utf-8-sig")
-        self.raw_count = len(self.df)
+        self.df: pd.DataFrame = pd.DataFrame()  # [수정] 생성자에서 CSV 읽지 않음
+        self.raw_documents: List[dict] = []  # [수정] Mongo 원본 문서를 담을 변수
+        self.raw_count = 0  # [수정] load_from_mongo에서 채움
         self.report: List[str] = []
         self.tfidf_matrix = None
         self.tfidf_terms: List[str] = []
+
+    def load_from_mongo(self, documents: List[dict]) -> None:  # [수정] 신규 메서드
+        """MongoDB find() 결과(dict 리스트)를 주입받습니다.
+
+        Args:
+            documents: raw_reviews 컬렉션에서 site_name="kakaomap"으로 조회한 문서 리스트
+        """
+        self.raw_documents = documents
+        self.raw_count = len(documents)
 
     # ------------------------------------------------------------------ #
     # 1. 전처리
     # ------------------------------------------------------------------ #
     def preprocess(self):
+        # [수정] 주입받은 documents로 DataFrame 생성
+        raw_df = pd.DataFrame(self.raw_documents)
+
+        if "_id" in raw_df.columns:  # [수정] _id 제거 (재삽입 충돌 방지)
+            raw_df = raw_df.drop(columns=["_id"])
+    
+        raw_df.columns = raw_df.columns.str.replace("\ufeff", "", regex=False)  # [추가] BOM 제거
+
         # 팀 공통 스키마(rating, date, content) 중 본문 컬럼만 review로 통일
-        df = self.df.rename(columns={"content": "review"})
-        df = df[["rating", "date", "review"]].copy()
+        df = raw_df.rename(columns={"content": "review"})   # [수정] self.df → raw_df
+        df = df[["rating", "date", "review", "site_name"]].copy()
 
         # (1) 결측치 처리 -------------------------------------------------
         # 공백만 있는 리뷰도 결측으로 간주한 뒤, 핵심 3개 컬럼 중 하나라도 비면 제거
@@ -216,22 +234,27 @@ class KakaomapProcessor(BaseDataProcessor):
     # ------------------------------------------------------------------ #
     # 3. 저장
     # ------------------------------------------------------------------ #
-    def save_to_database(self):
-        os.makedirs(self.output_dir, exist_ok=True)
+
+    def save_to_database(self, collection) -> None:   # [수정] output_dir → mongo collection
+        """전처리 및 FE 결과를 MongoDB 컬렉션에 저장합니다.
+
+        Args:
+            collection: 저장 대상 MongoDB 컬렉션 (pymongo Collection 객체)
+        """
         out = self.df.copy()
-        out["date"] = out["date"].dt.strftime("%Y-%m-%d")
-        out["tokens"] = out["tokens"].apply(lambda ts: " ".join(ts))
 
-        output_path = os.path.join(
-            self.output_dir, f"preprocessed_reviews_{self.SITE_NAME}.csv"
-        )
-        out.to_csv(output_path, index=False, encoding="utf-8-sig")
+        # [수정] Mongo(BSON)는 datetime 객체를 그대로 지원하므로 pydatetime으로 변환
+        out["date"] = out["date"].dt.to_pydatetime()
 
-        print(f"[KakaomapProcessor] {self.raw_count}행 -> {len(out)}행")
+        records = out.to_dict("records")
+        if records:
+            collection.delete_many({"site_name": "kakaomap"})  # 재실행시 기존 데이터 먼저 삭제
+            collection.insert_many(records)
+
+        print(f"[KakaomapProcessor] {self.raw_count}행 -> {len(records)}행")
         for line in self.report:
             print(f"  - {line}")
-        print(f"  저장 완료: {output_path} (컬럼 {out.shape[1]}개)")
-        return output_path
+        print(f"  MongoDB 저장 완료: {len(records)}건")
 
     # ------------------------------------------------------------------ #
     def _log(self, name: str, removed: int):
