@@ -24,7 +24,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPOSITORY }}:latest
+          tags: ${{ secrets.DOCKERHUB_REPOSITORY }}:latest
 
   deploy:
     name: Deploy to EC2
@@ -34,7 +34,6 @@ jobs:
       - name: Pull image and run container
         shell: bash
         env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_REPOSITORY: ${{ secrets.DOCKERHUB_REPOSITORY }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
@@ -62,7 +61,7 @@ jobs:
             'umask 077; cat > ~/ybigta-app.env'
 
           ssh -i ~/.ssh/id_ec2 "$EC2_USERNAME@$EC2_HOST" \
-            "docker pull '$DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:latest' && \
+            "docker pull '$DOCKERHUB_REPOSITORY:latest' && \
              docker rm --force ybigta-api 2>/dev/null || true; \
              docker run --detach --name ybigta-api --env-file ~/ybigta-app.env \
-             --publish 8000:8000 '$DOCKERHUB_USERNAME/$DOCKERHUB_REPOSITORY:latest'"
+             --publish 8000:8000 '$DOCKERHUB_REPOSITORY:latest'"
