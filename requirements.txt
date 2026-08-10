@@ -28,3 +28,5 @@ scikit-learn==1.7.2
 pymysql
 sqlalchemy
 python-dotenv
+pymongo
+pytest
