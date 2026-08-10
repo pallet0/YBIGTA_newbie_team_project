@@ -738,3 +738,23 @@ API를 여러 번 호출해 테스트하는 과정에서, `processed_reviews` �
 > 설계하는 것이 안전합니다. 특히 여러 사람이 같은 API를 테스트하거나,
 > CI/CD 파이프라인에서 반복 실행될 가능성이 있는 엔드포인트라면
 > 멱등성을 고려하는 것이 중요합니다.
+
+### Docker Hub
+
+https://hub.docker.com/r/ryulha/dbgit_test
+
+### AWS API 실행 결과
+
+![register](aws/register.png)
+
+![login](aws/login.png)
+
+![update-password](aws/update-password.png)
+
+![delete](aws/delete.png)
+
+![preprocess](aws/preprocess.png)
+
+### GitHub Actions 실행 결과
+
+![GitHub Actions](aws/github_action.png)
