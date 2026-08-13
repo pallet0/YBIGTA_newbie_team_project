@@ -877,3 +877,6 @@ MCP Tool 호출 내역은 서버 콘솔에 로그로 남기며, 화면에서도 
 
 ![Agent 단순 조회 예시](aws/agent_query.png)
 ![Agent 분석 예시](aws/agent_analysis.png)
+
+Vercel 배포 링크 (https://ybigta-ai-agent-5tc4.vercel.app/)
+![Vercel 질문 예시](aws/vercel.png)
