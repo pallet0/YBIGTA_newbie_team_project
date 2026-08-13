@@ -758,3 +758,69 @@ https://hub.docker.com/r/ryulha/dbgit_test
 ### GitHub Actions 실행 결과
 
 ![GitHub Actions](aws/github_action.png)
+
+## AI Agent 과제
+
+### Architecture
+
+```mermaid
+flowchart TD
+    source[Data Source] --> collector[AWS Data Collector]
+    collector --> rds
+    browser[Browser] --> vercel[Vercel / Next.js Agent]
+    vercel --> mcp
+    mcp --> rds
+
+    subgraph vpc[AWS VPC]
+        subgraph public[Public Subnet]
+            mcp[MCP Server]
+        end
+        subgraph private[Private Subnet]
+            rds[RDS]
+        end
+    end
+```
+
+### MCP
+
+MCP Server는 Tool, Service, Repository를 분리해 구성했습니다.
+
+```text
+MCP Tool
+  → Service
+    → Repository
+      → RDS
+```
+
+| Tool | 설명 |
+|---|---|
+| `get_latest_data(limit)` | 최근 수집된 리뷰를 조회합니다. |
+| `search_data(keyword, start_date, end_date, limit)` | 키워드와 기간으로 리뷰를 검색합니다. |
+| `get_statistics(column)` | 리뷰 별점의 평균, 최솟값, 최댓값, 개수를 조회합니다. |
+
+조회 SQL은 `mcp_server/repositories/data_repository.py`에서만 작성합니다. Service는 입력값을 검증하고, MCP Tool은 Service를 호출합니다. 새로운 Tool을 추가할 때도 Repository에 조회 기능을 추가하고 Service를 거쳐 `server.py`에 등록합니다.
+
+Repository에서는 parameterized query를 사용하고 조회 결과는 최대 100개로 제한합니다. DB 연결과 조회 timeout은 5초이며 날짜 형식과 통계 컬럼을 검증합니다.
+
+### MCP Security
+
+- MCP는 SELECT 권한만 가진 `mcp_user`로 RDS에 연결합니다.
+- RDS는 Private Subnet에 두고 MCP Server의 Security Group에서만 DB 포트 접근을 허용합니다.
+- MCP Server는 Public Subnet의 EC2에서 실행하고 내부 애플리케이션 포트는 인터넷에 직접 공개하지 않습니다.
+- 외부 요청은 Reverse Proxy를 거쳐 MCP Server로 전달합니다.
+- MCP 요청은 `Authorization: Bearer <MCP_AUTH_TOKEN>`으로 인증합니다.
+- DB Credential과 MCP Token은 환경변수로 관리하며 Docker Image에 포함하지 않습니다.
+- Browser는 MCP를 직접 호출하지 않고 Vercel의 Next.js Server를 통해 호출합니다.
+
+### MCP Docker
+
+```bash
+docker build -f mcp_server/Dockerfile -t ybigta-mcp .
+docker run --env-file .env -p 127.0.0.1:8000:8000 ybigta-mcp
+```
+
+MCP 엔드포인트는 `/mcp`입니다.
+
+![MCP Tool 목록](aws/mcp_tools.png)
+
+![MCP Tool 호출](aws/mcp_call.png)

@@ -9,7 +9,7 @@ MCP Tool이 직접 호출하는 레이어.
 
 from datetime import datetime
 
-from repositories.data_repository import ReviewRepository
+from mcp_server.repositories.data_repository import ReviewRepository
 
 _repo = ReviewRepository()
 
