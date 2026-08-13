@@ -781,6 +781,31 @@ flowchart TD
     end
 ```
 
+### Data Pipeline 
+
+- **수집 데이터**: 카카오맵 "성심당 본점" 리뷰 (식당명, 리뷰 내용, 별점, 리뷰 날짜)
+- **갱신 주기**: 30분마다 (EC2 cron)
+- **사용 AWS 기능**: EC2 + cron(cronie) + Docker(Selenium 컨테이너)
+- **DB Schema**:
+
+| 컬럼명 | 설명 |
+|---|---|
+| id | 리뷰 고유 ID |
+| restaurant_name | 식당 이름 |
+| review_text | 리뷰 내용 |
+| rating | 별점 |
+| review_date | 리뷰 작성일 |
+| created_at | DB 생성 시각 |
+| updated_at | DB 갱신 시각 |
+| collected_at | 수집 시각 |
+
+**동작 방식**:
+1. `run_crawler.sh`가 cron에 의해 30분마다 실행됨
+2. Selenium용 Docker 컨테이너(`selenium/standalone-chrome`)를 임시로 띄움 (EC2 메모리 제약으로 상시 실행하지 않고, 크롤링 시에만 기동 후 종료)
+3. `main.py`가 카카오맵을 최신순으로 크롤링하며, DB에 이미 저장된 가장 최신 리뷰 날짜(`stop_before_date`) 이전 리뷰가 연속으로 나오면 중단하여 중복 수집을 방지
+4. 전처리(결측치/중복/짧은 리뷰 제거) 후 `collector_user`(INSERT/UPDATE 권한) 계정으로 DB에 저장
+5. 크롤링이 끝나면 Selenium 컨테이너를 종료하여 리소스 반환
+
 ### MCP
 
 MCP Server는 Tool, Service, Repository를 분리해 구성했습니다.
@@ -824,3 +849,31 @@ MCP 엔드포인트는 `/mcp`입니다.
 ![MCP Tool 목록](aws/mcp_tools.png)
 
 ![MCP Tool 호출](aws/mcp_call.png)
+
+### Agent
+
+사용자 질문이 들어오면 Vercel의 Next.js API Route(`app/api/chat/route.ts`)에서
+Gemini(`gemini-3.1-flash-lite`)에게 질문을 전달합니다.
+Gemini는 질문 내용에 따라 필요한 MCP Tool을 스스로 선택하여 호출하고,
+Tool 실행 결과(DB에서 조회된 실제 데이터)를 다시 Gemini에게 전달하여
+최종 자연어 답변을 생성합니다.
+
+**예시 1) 단순 조회**
+- 질문: "최근 리뷰 5개 보여줘"
+- 호출된 Tool: `get_latest_data(limit=5)`
+- Agent 답변: 성심당 본점 리뷰 5개(날짜, 별점, 원문)를 정리하여 안내
+
+**예시 2) 분석/집계**
+- 질문: "리뷰 평점 평균이 어때?", "리뷰 별점 최고점이랑 최저점이 뭐야?"
+- 호출된 Tool: `get_statistics(column="rating")`
+- Agent 답변: "평균 4.2점 (총 27개 리뷰)", "최고 5.0점, 최저 1.0점"
+
+Agent는 MCP Tool이 반환한 실제 DB 데이터만을 근거로 답변하며,
+Tool로 해결할 수 없는 질문(예: 날씨 등 데이터와 무관한 질문)에는
+관련 데이터가 없음을 안내하도록 구성했습니다.
+
+MCP Tool 호출 내역은 서버 콘솔에 로그로 남기며, 화면에서도 어떤 Tool이
+호출되었고 어떤 데이터가 반환되었는지 펼쳐볼 수 있도록 UI에 구현했습니다.
+
+![Agent 단순 조회 예시](aws/agent_query.png)
+![Agent 분석 예시](aws/agent_analysis.png)
